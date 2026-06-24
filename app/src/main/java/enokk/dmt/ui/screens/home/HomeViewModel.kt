@@ -1,20 +1,80 @@
 package enokk.dmt.ui.screens.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import enokk.dmt.data.repository.CharacterRepository
+import enokk.dmt.model.Character
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.UUID
 
-// Lo stato della schermata Home — tutto quello che la UI deve mostrare
 data class HomeUiState(
-    val message: String = "Benvenuto in DMT!"
+    val characters: List<Character> = emptyList(),
+    val showNewCharacterDialog: Boolean = false,
+    val characterPendingDelete: Character? = null
 )
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(private val repository: CharacterRepository) : ViewModel() {
 
-    // _uiState è privato e mutabile — solo il ViewModel può cambiarlo
-    private val _uiState = MutableStateFlow(HomeUiState())
+    private val _showDialog = MutableStateFlow(false)
+    private val _characterPendingDelete = MutableStateFlow<Character?>(null)
 
-    // uiState è pubblico e in sola lettura — la UI può solo osservarlo
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val uiState = combine(
+        repository.characters,
+        _showDialog,
+        _characterPendingDelete
+    ) { characters, showDialog, pendingDelete ->
+        HomeUiState(
+            characters = characters,
+            showNewCharacterDialog = showDialog,
+            characterPendingDelete = pendingDelete
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = HomeUiState()
+    )
+
+    fun onNewCharacterClick() {
+        _showDialog.value = true
+    }
+
+    fun onNewCharacterConfirm(name: String) {
+        if (name.isBlank()) return
+        _showDialog.value = false
+        viewModelScope.launch {
+            repository.addCharacter(
+                Character(id = UUID.randomUUID().toString(), name = name.trim())
+            )
+        }
+    }
+
+    fun onDialogDismiss() {
+        _showDialog.value = false
+    }
+
+    fun onDeleteRequested(character: Character) {
+        _characterPendingDelete.value = character
+    }
+
+    fun onDeleteConfirmed() {
+        val character = _characterPendingDelete.value ?: return
+        _characterPendingDelete.value = null
+        viewModelScope.launch { repository.deleteCharacter(character.id) }
+    }
+
+    fun onDeleteDismissed() {
+        _characterPendingDelete.value = null
+    }
+
+    companion object {
+        fun factory(repository: CharacterRepository) = viewModelFactory {
+            initializer { HomeViewModel(repository) }
+        }
+    }
 }
