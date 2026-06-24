@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +56,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -319,11 +322,24 @@ private fun CharacterCard(
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            Text(
-                text = character.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            val twoLineHeight = with(LocalDensity.current) {
+                (MaterialTheme.typography.titleMedium.lineHeight.value * 2 * fontScale).dp
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = twoLineHeight),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = character.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Text(
                 text = "${character.race} • ${character.characterClass}",
                 style = MaterialTheme.typography.bodySmall,
